@@ -3,17 +3,12 @@
  * Copyright (C) 2021 Sebastian Riedel
  * MIT Licensed
  */
-import App from './app.js';
+import App, {AppOptions} from './app.js';
 import File from './file.js';
 import Logger from './logger.js';
 import * as util from './util.js';
 
-export default function mojo (options: {
-  config?: {},
-  exceptionFormat?: string,
-  mode?: string,
-  secrets?: string[]
-}) : App {
+export default function mojo (options: AppOptions) : App {
   const app = new App(options);
   app.mojo = mojo;
   app.home = File.callerFile().dirname();

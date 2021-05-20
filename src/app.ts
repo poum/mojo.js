@@ -17,27 +17,40 @@ import Static from './static.js';
 import viewHelpersPlugin from './plugins/view-helpers.js';
 import WebSocketContext from './context/websocket.js';
 
+export interface AppOptions {
+  config?: {},
+  exceptionFormat?: string,
+  mode?: string,
+  secrets?: string[]
+}
+
 export default class App {
-  constructor (options = {}) {
-    this.cli = new CLI(this);
-    this.client = new Client();
+  cli: CLI = new CLI(this);
+  client: Client = new Client();
+  config: {};
+  exceptionFormat: string;
+  hooks: Hooks = new Hooks();
+  home: File = undefined;
+  log: Logger;
+  mime: Mime = new Mime();
+  models: {} = {};
+  mojo: Function = undefined;
+  renderer: Renderer = new Renderer();
+  router: Router = new Router();
+  secrets: string[];
+  session: Session = new Session(this);
+  static: Static = new Static();
+  #httpContextClass: {} = class extends HTTPContext {};
+  #mode: string;
+  #websocketContextClass: {} = class extends WebSocketContext {};
+
+  constructor (options: AppOptions = {}) {
     this.config = options.config ?? {};
     this.exceptionFormat = options.exceptionFormat ?? 'html';
-    this.hooks = new Hooks();
-    this.home = undefined;
-    this.mime = new Mime();
-    this.models = {};
-    this.mojo = undefined;
-    this.renderer = new Renderer();
-    this.router = new Router();
     this.secrets = options.secrets ?? ['Insecure'];
-    this.session = new Session(this);
-    this.static = new Static();
-    this._httpContextClass = class extends HTTPContext {};
-    this._mode = options.mode ?? process.env.NODE_ENV ?? 'development';
-    this._websocketContextClass = class extends WebSocketContext {};
+    this.#mode = options.mode ?? process.env.NODE_ENV ?? 'development';
 
-    const isDev = this._mode === 'development';
+    const isDev = this.#mode === 'development';
     this.log = new Logger({historySize: isDev ? 10 : 0, level: isDev ? 'debug' : 'info'});
 
     this.plugin(ejsEnginePlugin);
@@ -67,11 +80,11 @@ export default class App {
     }
 
     if (typeof fn.get === 'function' || typeof fn.set === 'function') {
-      Object.defineProperty(this._httpContextClass.prototype, name, fn);
-      Object.defineProperty(this._websocketContextClass.prototype, name, fn);
+      Object.defineProperty(this.#httpContextClass.prototype, name, fn);
+      Object.defineProperty(this.#websocketContextClass.prototype, name, fn);
     } else {
-      this._httpContextClass.prototype[name] = fn;
-      this._websocketContextClass.prototype[name] = fn;
+      this.#httpContextClass.prototype[name] = fn;
+      this.#websocketContextClass.prototype[name] = fn;
     }
 
     return this;
@@ -103,11 +116,11 @@ export default class App {
   }
 
   get mode () {
-    return this._mode;
+    return this.#mode;
   }
 
   newHTTPContext (req, res, options) {
-    return new this._httpContextClass(this, req, res, options);
+    return new this.#httpContextClass(this, req, res, options);
   }
 
   newMockClient (options) {
@@ -119,7 +132,7 @@ export default class App {
   }
 
   newWebSocketContext (req, options) {
-    return new this._websocketContextClass(this, req, options);
+    return new this.#websocketContextClass(this, req, options);
   }
 
   options (...args) {
@@ -130,7 +143,7 @@ export default class App {
     return this.router.patch(...args);
   }
 
-  plugin (plugin, options) {
+  plugin (plugin: Function, options: {} = {}) {
     return plugin(this, options);
   }
 
