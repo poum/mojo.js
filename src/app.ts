@@ -1,3 +1,4 @@
+import {ClientRequest, ServerResponse} from 'http';
 import ejsEnginePlugin from './plugins/ejs-engine.js';
 import exceptionHelpersPlugin from './plugins/exception-helpers.js';
 import headerConditionsPlugin from './plugins/header-conditions.js';
@@ -11,6 +12,7 @@ import HTTPContext from './context/http.js';
 import Logger from './logger.js';
 import Mime from './mime.js';
 import Renderer from './renderer.js';
+import {AnyArguments, RouteArguments} from './router/route.js';
 import Router from './router.js';
 import Session from './session.js';
 import Static from './static.js';
@@ -40,17 +42,17 @@ export default class App {
   secrets: string[];
   session: Session = new Session(this);
   static: Static = new Static();
-  #httpContextClass: {} = class extends HTTPContext {};
-  #mode: string;
-  #websocketContextClass: {} = class extends WebSocketContext {};
+  _httpContextClass: any = class extends HTTPContext {};
+  _mode: string;
+  _websocketContextClass: any = class extends WebSocketContext {};
 
   constructor (options: AppOptions = {}) {
     this.config = options.config ?? {};
     this.exceptionFormat = options.exceptionFormat ?? 'html';
     this.secrets = options.secrets ?? ['Insecure'];
-    this.#mode = options.mode ?? process.env.NODE_ENV ?? 'development';
+    this._mode = options.mode ?? process.env.NODE_ENV ?? 'development';
 
-    const isDev = this.#mode === 'development';
+    const isDev = this._mode === 'development';
     this.log = new Logger({historySize: isDev ? 10 : 0, level: isDev ? 'debug' : 'info'});
 
     this.plugin(ejsEnginePlugin);
@@ -59,46 +61,46 @@ export default class App {
     this.plugin(viewHelpersPlugin);
   }
 
-  addHelper (name, fn) {
+  addHelper (name: string, fn: Function) {
     return this.decorateContext(name, function (...args) {
       return fn(this, ...args);
     });
   }
 
-  addHook (name, fn) {
+  addHook (name: string, fn: Function) {
     this.hooks.addHook(name, fn);
     return this;
   }
 
-  any (...args) {
+  any (...args: AnyArguments) {
     return this.router.any(...args);
   }
 
-  decorateContext (name, fn) {
+  decorateContext (name: string, fn: PropertyDescriptor & ThisType<any>) {
     if (HTTPContext.prototype[name] !== undefined || WebSocketContext[name] !== undefined) {
       throw new Error(`The name "${name}" is already used in the prototype chain`);
     }
 
     if (typeof fn.get === 'function' || typeof fn.set === 'function') {
-      Object.defineProperty(this.#httpContextClass.prototype, name, fn);
-      Object.defineProperty(this.#websocketContextClass.prototype, name, fn);
+      Object.defineProperty(this._httpContextClass.prototype, name, fn);
+      Object.defineProperty(this._websocketContextClass.prototype, name, fn);
     } else {
-      this.#httpContextClass.prototype[name] = fn;
-      this.#websocketContextClass.prototype[name] = fn;
+      this._httpContextClass.prototype[name] = fn;
+      this._websocketContextClass.prototype[name] = fn;
     }
 
     return this;
   }
 
-  delete (...args) {
+  delete (...args: RouteArguments) {
     return this.router.delete(...args);
   }
 
-  get (...args) {
+  get (...args: RouteArguments) {
     return this.router.get(...args);
   }
 
-  async handleRequest (ctx) {
+  async handleRequest (ctx: any) {
     if (ctx.isWebSocket === true) {
       if (await this.hooks.runHook('websocket', ctx) === true) return;
       await this.router.dispatch(ctx);
@@ -116,11 +118,11 @@ export default class App {
   }
 
   get mode () {
-    return this.#mode;
+    return this._mode;
   }
 
-  newHTTPContext (req, res, options) {
-    return new this.#httpContextClass(this, req, res, options);
+  newHTTPContext (req: ClientRequest, res: ServerResponse, options: any) {
+    return new this._httpContextClass(this, req, res, options);
   }
 
   newMockClient (options) {
@@ -131,15 +133,15 @@ export default class App {
     return TestClient.newTestClient(this, options);
   }
 
-  newWebSocketContext (req, options) {
-    return new this.#websocketContextClass(this, req, options);
+  newWebSocketContext (req: ClientRequest, options) {
+    return new this._websocketContextClass(this, req, options);
   }
 
-  options (...args) {
+  options (...args: RouteArguments) {
     return this.router.options(...args);
   }
 
-  patch (...args) {
+  patch (...args: RouteArguments) {
     return this.router.patch(...args);
   }
 
@@ -147,20 +149,20 @@ export default class App {
     return plugin(this, options);
   }
 
-  post (...args) {
+  post (...args: RouteArguments) {
     return this.router.post(...args);
   }
 
-  put (...args) {
+  put (...args: RouteArguments) {
     return this.router.put(...args);
   }
 
-  start (command, ...options) {
+  start (command: string, ...options) {
     if (process.argv[1] !== File.callerFile().toString()) return;
     return this.cli.start(command, ...options);
   }
 
-  under (...args) {
+  under (...args: AnyArguments) {
     return this.router.under(...args);
   }
 
@@ -169,7 +171,7 @@ export default class App {
     await this.router.warmup();
   }
 
-  websocket (...args) {
+  websocket (...args: AnyArguments) {
     return this.router.websocket(...args);
   }
 }

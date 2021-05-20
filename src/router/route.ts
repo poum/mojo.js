@@ -1,28 +1,31 @@
 import assert from 'assert';
 import Pattern from './pattern.js';
+import Router from '../router.js';
+
+export type AnyArguments = (string | string[] | Function | {})[];
+
+export type RouteArguments = (string | Function | {})[];
 
 export default class Route {
-  constructor () {
-    this.children = [];
-    this.customName = undefined;
-    this.defaultName = undefined;
-    this.underRoute = false;
-    this.methods = [];
-    this.parent = undefined;
-    this.pattern = new Pattern();
-    this.root = undefined;
-    this.requirements = undefined;
-    this.websocketRoute = false;
-  }
+  children: Route[] = [];
+  customName: string = undefined;
+  defaultName: string = undefined;
+  underRoute: boolean = false;
+  methods: string[] = [];
+  parent: WeakRef<Route> = undefined;
+  pattern: Pattern = new Pattern();
+  root: WeakRef<Router> = undefined;
+  requirements: object[] = undefined;
+  websocketRoute: boolean = false;
 
-  addChild (child) {
+  addChild (child: Route) {
     this.children.push(child);
     child.parent = new WeakRef(this);
     child.root = this.root;
     return child;
   }
 
-  any (...args) {
+  any (...args: AnyArguments) {
     const child = new Route();
 
     for (const arg of args) {
@@ -42,11 +45,11 @@ export default class Route {
     return this.addChild(child);
   }
 
-  delete (...args) {
+  delete (...args: RouteArguments) {
     return this.any(['DELETE'], ...args);
   }
 
-  get (...args) {
+  get (...args: RouteArguments) {
     return this.any(['GET'], ...args);
   }
 
@@ -58,28 +61,28 @@ export default class Route {
     return this.children.length === 0;
   }
 
-  name (name) {
+  name (name: string) {
     this.customName = name;
     return this;
   }
 
-  options (...args) {
+  options (...args: RouteArguments) {
     return this.any(['OPTIONS'], ...args);
   }
 
-  patch (...args) {
+  patch (...args: RouteArguments) {
     return this.any(['PATCH'], ...args);
   }
 
-  post (...args) {
+  post (...args: RouteArguments) {
     return this.any(['POST'], ...args);
   }
 
-  put (...args) {
+  put (...args: RouteArguments) {
     return this.any(['PUT'], ...args);
   }
 
-  render (values = {}) {
+  render (values: {[key: string]: string} = {}) {
     const parts = [];
     const branch = this._branch();
     for (let i = 0; i < branch.length - 1; i++) {
@@ -88,7 +91,7 @@ export default class Route {
     return parts.reverse().join('');
   }
 
-  requires (condition, requirement) {
+  requires (condition: string, requirement: any) {
     assert(this.root.deref().conditions[condition], 'Invalid condition');
 
     if (this.requirements === undefined) this.requirements = [];
@@ -98,7 +101,7 @@ export default class Route {
     return this;
   }
 
-  to (target) {
+  to (target: string | Function | {}) {
     if (typeof target === 'string') {
       const parts = target.split('#');
       if (parts[0] !== '') this.pattern.defaults.controller = parts[0];
@@ -112,23 +115,23 @@ export default class Route {
     return this;
   }
 
-  under (...args) {
+  under (...args: AnyArguments) {
     const child = this.any(...args);
     child.underRoute = true;
     return child;
   }
 
-  websocket (...args) {
+  websocket (...args: AnyArguments) {
     const child = this.any(...args);
     child.websocketRoute = true;
     return child;
   }
 
   _branch () {
-    let current = this;
+    let current: Route = this;
     const branch = [current];
-    while ((current = current.parent) !== undefined) {
-      branch.push(current = current.deref());
+    while (current.parent !== undefined) {
+      branch.push(current = current.parent.deref());
     }
     return branch;
   }
