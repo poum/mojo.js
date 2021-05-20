@@ -26,6 +26,16 @@ export interface AppOptions {
   secrets?: string[]
 }
 
+export interface HTTPContextWithHelpers extends HTTPContext {
+  [key: string]: any
+}
+
+export interface WebSocketContextWithHelpers extends WebSocketContext {
+  [key: string]: any
+}
+
+export type MojoContext = HTTPContextWithHelpers | WebSocketContextWithHelpers;
+
 export default class App {
   cli: CLI = new CLI(this);
   client: Client = new Client();
@@ -100,7 +110,7 @@ export default class App {
     return this.router.get(...args);
   }
 
-  async handleRequest (ctx: any) {
+  async handleRequest (ctx: MojoContext) {
     if (ctx.isWebSocket === true) {
       if (await this.hooks.runHook('websocket', ctx) === true) return;
       await this.router.dispatch(ctx);

@@ -1,4 +1,4 @@
-import App from './app.js';
+import App, {MojoContext} from './app.js';
 import crypto from 'crypto';
 
 export default class Session {
@@ -14,7 +14,7 @@ export default class Session {
     this._app = new WeakRef(app);
   }
 
-  getSignedCookie (ctx: any, name: string) {
+  getSignedCookie (ctx: MojoContext, name: string) {
     const cookie = ctx.req.getCookie(name);
     if (cookie === null) return null;
 
@@ -32,7 +32,7 @@ export default class Session {
     return null;
   }
 
-  load (ctx: any) {
+  load (ctx: MojoContext) {
     const cookie = this.getSignedCookie(ctx, this.cookieName);
     if (cookie === null) return null;
     const data = JSON.parse(Buffer.from(cookie.replaceAll('-', '='), 'base64').toString());
@@ -44,14 +44,14 @@ export default class Session {
     return data;
   }
 
-  setSignedCookie (ctx: any, name: string, value: string, options: {}) {
+  setSignedCookie (ctx: MojoContext, name: string, value: string, options: {}) {
     const hmac = crypto.createHmac('sha1', this._app.deref().secrets[0]);
     hmac.update(value);
     const sum = hmac.digest('hex');
     ctx.res.setCookie(name, `${value}--${sum}`, options);
   }
 
-  store (ctx: any, data: {expire: number, [key: string]: any}) {
+  store (ctx: MojoContext, data: {expire: number, [key: string]: any}) {
     if (typeof data.expires !== 'number') data.expires = Math.round(Date.now() / 1000) + this.expiration;
     const serialized = Buffer.from(JSON.stringify(data)).toString('base64').replaceAll('=', '-');
 
