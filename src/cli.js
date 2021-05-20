@@ -42,6 +42,7 @@ export default class CLI {
     for (const dir of this.commandPaths.map(path => new File(path))) {
       if (!(await dir.exists())) continue;
       for await (const file of dir.list()) {
+        if (!file.toString().match(/js$/)) continue;
         const imports = await import(file.toFileURL());
         this.addCommand(file.basename('.js'), imports.default);
       }
