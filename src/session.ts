@@ -1,17 +1,20 @@
+import App from './app.js';
 import crypto from 'crypto';
 
 export default class Session {
-  constructor (app) {
-    this.cookieName = 'mojo';
-    this.cookiePath = '/';
-    this.expiration = 3600;
-    this.httpOnly = true;
-    this.sameSite = 'Lax';
-    this.secure = false;
+  cookieName = 'mojo';
+  cookiePath = '/';
+  expiration = 3600;
+  httpOnly = true;
+  sameSite = 'Lax';
+  secure = false;
+  _app: WeakRef<App>;
+
+  constructor (app: App) {
     this._app = new WeakRef(app);
   }
 
-  getSignedCookie (ctx, name) {
+  getSignedCookie (ctx: any, name: string) {
     const cookie = ctx.req.getCookie(name);
     if (cookie === null) return null;
 
@@ -29,10 +32,10 @@ export default class Session {
     return null;
   }
 
-  load (ctx) {
+  load (ctx: any) {
     const cookie = this.getSignedCookie(ctx, this.cookieName);
     if (cookie === null) return null;
-    const data = JSON.parse(Buffer.from(cookie.replaceAll('-', '='), 'base64'));
+    const data = JSON.parse(Buffer.from(cookie.replaceAll('-', '='), 'base64').toString());
 
     const expires = data.expires;
     delete data.expires;
@@ -41,14 +44,14 @@ export default class Session {
     return data;
   }
 
-  setSignedCookie (ctx, name, value, options) {
+  setSignedCookie (ctx: any, name: string, value: string, options: {}) {
     const hmac = crypto.createHmac('sha1', this._app.deref().secrets[0]);
     hmac.update(value);
     const sum = hmac.digest('hex');
     ctx.res.setCookie(name, `${value}--${sum}`, options);
   }
 
-  store (ctx, data) {
+  store (ctx: any, data: {expire: number, [key: string]: any}) {
     if (typeof data.expires !== 'number') data.expires = Math.round(Date.now() / 1000) + this.expiration;
     const serialized = Buffer.from(JSON.stringify(data)).toString('base64').replaceAll('=', '-');
 
