@@ -376,6 +376,113 @@ Connection: close
 Welcome sebastian.
 ```
 
+## Final prototype
+
+A final `myapp.js` prototype passing all of the tests above could look like this.
+
+```
+import mojo from '@mojojs/core';
+import Users from './models/users.js';
+
+// Set cookie secret
+export const app = mojo({secrets: ['Mojolicious rocks']});
+
+app.models.users = new Users();
+
+// Main login action
+app.any('/', async ctx => {
+  // Query parameters
+  const params = await ctx.params();
+  const user = params.get('user')
+  const pass = params.get('pass')
+
+  // Check password and render "index.html.ep" if necessary
+  if(ctx.models.users.check(user, pass) === true) { 
+    return ctx.render({inline: indexTemplate, inlineLayout: defaultLayout});
+  }
+
+  // Store username in session
+  const session = await ctx.session();
+  session.user = user;
+
+  // Store a friendly message for the next page in flash
+  const flash=await ctx.flash();
+  flash.message = 'Thanks for logging in.';
+
+  // Redirect to protected page with a 302 response
+  ctx.redirectTo('protected');
+}); 
+
+// Make sure user is logged in for actions in this action
+const protectedArea = app.under('/protected').to(async ctx => {
+  const session=await ctx.session();
+  if(session.user !== undefined) return;
+  await ctx.render({text: 'Permission denied'});
+  return false;
+});
+
+// A protected page auto rendering "protected.html.ep"
+protectedArea.get('/').to(async ctx => {
+  return ctx.render({inline: protectedTemplate, inlineLayout: defaultLayout});;
+});
+
+// Logout action
+app.get ('/logout', async ctx => {
+
+  // Expire and in turn clear session automatically
+  const session = await ctx.session();
+  session.expires = 1;
+
+  // Redirect to main page with a 302 response
+  ctx.redirectTo('/');
+});
+
+app.start();
+
+const indexTemplate = `
+<form method="post">
+% if (param('user') !=== undefined) {
+  <b>Wrong name or password, please try again.</b><br>
+% }
+  Name:<br>
+  <input name="name">
+  <br>Password:<br>
+  <input type="password" name="password">
+  <br>
+%= tag('button', {name: 'Login'})
+</form>
+`;
+
+const protectedTemplate = `
+  % if (const msg = flash 'message') {
+    <b><%= msg %></b><br>
+  % }
+  Welcome <%= session 'user' %>.<br>
+  <a herf="/logout">Logout</a>
+`;
+
+const defaultLayout = `
+  <!DOCTYPE html>
+  <html>
+    <head><title>Login Manager</title></head>
+    <body><%= content %></body>
+  </html>
+`;
+```
+
+And the directory structure should be looking like this now.
+
+  myapp
+  |- myapp.js
+  |- models
+  |  +- users.js
+  +- tests
+     +- login.js
+
+Our templates are using quite a few features of the renderer, the `Rendering` guide explains them all in
+great detail.
+
+
 ## Support
 
 If you have any questions the documentation might not yet answer, don't hesitate to ask in the
